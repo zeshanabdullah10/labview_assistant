@@ -16,8 +16,8 @@ from typing import Any
 import win32com.client
 import pythoncom
 
-from .labview_com import LabVIEWClient, ScriptingClient, LabVIEWCOMError
-from .tools import CONFIRMED_PALETTE_NAMES, FORBIDDEN_STANDALONE
+from labview_com import LabVIEWClient, ScriptingClient, LabVIEWCOMError
+from tools import CONFIRMED_PALETTE_NAMES, FORBIDDEN_STANDALONE
 
 _logger = logging.getLogger("labview_mcp.handlers")
 _DEBUG_ENABLED = True

@@ -117,6 +117,53 @@ Example prompt for your AI assistant:
 
 ---
 
+## Build Workflow — LV-Plan First
+
+This project uses a **structured build workflow** that produces better results than ad-hoc VI construction. Every VI starts with an **LV-Plan** — a text document fully specifying the VI's topology before any LabVIEW call is made.
+
+### Typical AI Build Sequence
+
+```
+1. AI writes LV-Plan (structured text) → 2. smart_new_vi → 3. smart_for_loop
+4. smart_add_object_inside × N         → 5. smart_feedback_node × N
+6. smart_create_control(constant=True) × N → 7. smart_connect_objects × N
+8. smart_create_control(is_input=False) × N → 9. rename_object × N
+10. smart_save_and_finish → User saves manually (Ctrl+S)
+```
+
+### Verified Example Programs
+
+The following VIs have been built and verified end-to-end:
+
+**Example 1: EMA Temperature Monitor** (50 iterations)
+- Random temperature (20-30°C) → EMA filter (α=0.2) → dual alarm (>28°C high, <22°C low)
+- 10 nodes, 9 wires, 1 Feedback Node
+- Indicators: `EMA Temperature`, `High Alarm`, `Low Alarm`
+
+**Example 2: PID Controller Simulation** (100 iterations)
+- Random PV (0-100) vs setpoint (50) → P/I/D terms → PID output
+- 12 nodes, 15 wires, 2 Feedback Nodes (integral accumulator + previous error)
+- Fan-out: error signal goes to 4 destinations simultaneously
+- Indicators: `Error`, `PID Output`
+
+**Example 3: Fibonacci Generator with EMA** (20 iterations)
+- Cross-wired Fibonacci (fn_a=0, fn_b=1) → EMA smoothing (α=0.3) → deviation + threshold
+- 9 nodes, 12 wires, 3 Feedback Nodes
+- Indicators: `Fibonacci Number`, `EMA of Fibonacci`, `Threshold Exceeded`, `Deviation`
+
+The `AGENTS.md` file in this repo contains the full LV-Plan for each example.
+
+### Documentation Files
+
+| File | Purpose |
+|---|---|
+| `AGENTS.md` | Agent instructions: smart tool build workflow, constraints, verified objects, signal processing patterns, and 3 fully-documented example programs with LV-Plans |
+| `.kilo/labview-skill/SKILL.md` | LabVIEW style guide: LV-Plan format, Feedback Node rules, architecture patterns, front panel/block diagram conventions, error handling, and code review checklist |
+
+These files are designed to be read by the AI assistant during build sessions. The AI should write an LV-Plan before any VI construction, following the Validation Checklist in `SKILL.md`.
+
+---
+
 ## Available Tools (40+)
 
 ### VI Lifecycle
@@ -193,7 +240,11 @@ Example prompt for your AI assistant:
 
 ```
 labview_assistant/
-├── labview_mcp/                    # Enhanced MCP server package
+├── .kilo/                           # Kilo CLI configuration
+│   └── labview-skill/                # LabVIEW skill package
+│       └── SKILL.md                 # LabVIEW style guide & LV-Plan format
+├── AGENTS.md                        # Agent instructions & verified examples
+├── Scripting Server/                # DQMH module VIs (LabVIEW side)
 │   ├── __init__.py
 │   ├── run_server.py               # MCP server entry point
 │   ├── tools.py                    # Tool schemas (JSON Schema definitions)

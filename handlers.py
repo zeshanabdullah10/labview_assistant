@@ -89,14 +89,14 @@ def _resolve_output(obj_id: int, logical_index: int) -> int:
     t = _query_terminals(obj_id)
     if logical_index < len(t["outputs"]):
         return t["outputs"][logical_index]
-    return t["outputs"][0] if t["outputs"] else 0
+    return -1
 
 
 def _resolve_input(obj_id: int, logical_index: int) -> int:
     t = _query_terminals(obj_id)
     if logical_index < len(t["inputs"]):
         return t["inputs"][logical_index]
-    return t["inputs"][0] if t["inputs"] else 0
+    return -1
 
 
 def _cleanup_diagram_sendkeys():
@@ -699,6 +699,10 @@ def handle_smart_add_with_constants(object_name: str, diagram_id: int = 0,
     for iv in input_values:
         logical = iv.get("terminal_index", 0)
         actual = _resolve_input(obj_id, logical)
+        if actual < 0:
+            steps.append({"step": "input_constant_error", "logical": logical,
+                           "error": f"No input terminal at logical index {logical}. Inputs: {terminals['inputs']}"})
+            continue
         cc = _internal_create_control(obj_id, actual, constant=True)
         cid = cc.get("created_object_id", 0)
         if cid:
@@ -710,6 +714,10 @@ def handle_smart_add_with_constants(object_name: str, diagram_id: int = 0,
     created_indicators = {}
     for oi in output_indicators:
         actual = _resolve_output(obj_id, oi)
+        if actual < 0:
+            steps.append({"step": "output_indicator_error", "logical": oi,
+                           "error": f"No output terminal at logical index {oi}. Outputs: {terminals['outputs']}"})
+            continue
         cc = _internal_create_control(obj_id, actual, constant=False)
         cid = cc.get("created_object_id", 0)
         if cid:
@@ -1002,6 +1010,11 @@ def handle_smart_connect_objects(from_object_reference: int, from_object_termina
                    "from_logical": from_object_terminal_index, "from_actual": actual_from,
                    "to_logical": to_object_terminal_index, "to_actual": actual_to})
 
+    if actual_from < 0:
+        return {"success": False, "steps": steps, "error": f"No output terminal at logical index {from_object_terminal_index} on object {from_object_reference}. Outputs: {from_terminals['outputs']}"}
+    if actual_to < 0:
+        return {"success": False, "steps": steps, "error": f"No input terminal at logical index {to_object_terminal_index} on object {to_object_reference}. Inputs: {to_terminals['inputs']}"}
+
     connect_result = _internal_connect_objects(
         from_object_reference, actual_from,
         to_object_reference, actual_to,
@@ -1045,6 +1058,35 @@ def handle_smart_wire(from_object_reference: int, from_object_terminal_index: in
                    "from_logical": from_object_terminal_index, "from_actual": actual_from,
                    "to_logical": to_object_terminal_index, "to_actual": actual_to})
 
+    if actual_from < 0:
+        return {"success": False, "steps": steps, "error": f"No output terminal at logical index {from_object_terminal_index} on object {from_object_reference}. Outputs: {from_terminals['outputs']}"}
+    if actual_to < 0:
+        return {"success": False, "steps": steps, "error": f"No input terminal at logical index {to_object_terminal_index} on object {to_object_reference}. Inputs: {to_terminals['inputs']}"}
+
+    if from_object_reference == to_object_reference:
+        if constant_value is not None:
+            cc = _internal_create_control(to_object_reference, actual_to, constant=True)
+            cid = cc.get("created_object_id", 0)
+            if cid:
+                _internal_set_value(cid, constant_value)
+                steps.append({"step": "create_constant", "value": constant_value, "created_id": cid})
+            steps.append({"step": "connect_objects", "error": "", "note": "skipped: same object, constant-only mode"})
+            return {
+                "success": True,
+                "wire_skipped_reason": "same_object",
+                "from_object": from_object_reference,
+                "from_logical_terminal": from_object_terminal_index,
+                "from_actual_terminal": actual_from,
+                "to_object": to_object_reference,
+                "to_logical_terminal": to_object_terminal_index,
+                "to_actual_terminal": actual_to,
+                "constant_created": True,
+                "ping": ping,
+                "steps": steps,
+            }
+        else:
+            return {"success": False, "steps": steps, "error": f"Cannot wire object {from_object_reference} to itself (from_terminal={from_object_terminal_index}, to_terminal={to_object_terminal_index}). Use smart_create_control(constant=True) to create input constants, or smart_wire with a different source object."}
+
     if constant_value is not None:
         cc = _internal_create_control(to_object_reference, actual_to, constant=True)
         cid = cc.get("created_object_id", 0)
@@ -1073,7 +1115,7 @@ def handle_smart_wire(from_object_reference: int, from_object_terminal_index: in
 
 
 def handle_smart_create_control(object_id: int, terminal_index: int, constant: bool = False,
-                               is_input: bool | None = None) -> dict:
+                                is_input: bool | None = None, value: str | None = None) -> dict:
     steps = []
 
     ping = _auto_ping()
@@ -1102,10 +1144,17 @@ def handle_smart_create_control(object_id: int, terminal_index: int, constant: b
             actual = _resolve_output(object_id, min(terminal_index, len(t["outputs"]) - 1))
     steps.append({"step": "resolve_terminal", "logical": terminal_index, "actual": actual, "constant": constant})
 
+    if actual < 0:
+        return {"success": False, "steps": steps, "error": f"Cannot resolve terminal index {terminal_index} on object {object_id}. Inputs: {terminals['inputs']}, Outputs: {terminals['outputs']}"}
+
     create_result = _internal_create_control(object_id, actual, constant)
     created_id = create_result.get("created_object_id", 0)
     steps.append({"step": "create_control", "created_object_id": created_id,
                    "error": create_result.get("error_out", "")})
+
+    if created_id and value is not None:
+        _internal_set_value(created_id, value)
+        steps.append({"step": "set_value", "value": value, "object_id": created_id})
 
     return {
         "success": created_id > 0,

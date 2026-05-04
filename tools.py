@@ -227,14 +227,15 @@ TOOLS: list[dict[str, Any]] = [
         "description": (
             "Connect source to destination AND optionally create a constant on a destination input terminal. "
             "If constant_value is provided, creates a constant on the destination's to_terminal, sets the value, "
-            "then connects from_object to to_object. Use this for wiring with constants in one call."
+            "then connects from_object to to_object. IMPORTANT: from_object and to_object must be DIFFERENT objects. "
+            "To create a constant on a terminal without wiring, use smart_create_control(constant=True, value='...') instead."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "from_object_reference": {"type": "integer", "description": "Object ID of the source."},
+                "from_object_reference": {"type": "integer", "description": "Object ID of the source. Must be different from to_object_reference."},
                 "from_object_terminal_index": {"type": "integer", "description": "Logical output terminal on source."},
-                "to_object_reference": {"type": "integer", "description": "Object ID of the destination."},
+                "to_object_reference": {"type": "integer", "description": "Object ID of the destination. Must be different from from_object_reference."},
                 "to_object_terminal_index": {"type": "integer", "description": "Logical input terminal on destination."},
                 "constant_value": {"type": "string", "description": "If provided, creates a constant with this value on to_terminal before wiring."},
             },
@@ -246,7 +247,8 @@ TOOLS: list[dict[str, Any]] = [
         "description": (
             "Create a control/indicator/constant with automatic terminal resolution: pings LabVIEW, "
             "queries the parent node's terminals, resolves the terminal index, creates the control, "
-            "and returns the created_object_id with terminal details."
+            "and returns the created_object_id with terminal details. "
+            "When constant=True, use the 'value' parameter to set the constant's value in one call."
         ),
         "inputSchema": {
             "type": "object",
@@ -255,6 +257,7 @@ TOOLS: list[dict[str, Any]] = [
                 "terminal_index": {"type": "integer", "description": "Logical terminal index on the node (0-based). For inputs this indexes into the inputs list; for outputs this indexes into the outputs list."},
                 "constant": {"type": "boolean", "description": "If True, creates a constant (inputs only).", "default": False},
                 "is_input": {"type": "boolean", "description": "If True, resolve as input terminal (control). If False, resolve as output terminal (indicator). Auto-detects when omitted.", "default": None},
+                "value": {"type": "string", "description": "If provided, sets the created control/constant to this value (e.g. '100', 'true', '0')."},
             },
             "required": ["object_id", "terminal_index"],
         },

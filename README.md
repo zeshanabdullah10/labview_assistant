@@ -2,6 +2,10 @@
 
 > An enhanced [Model Context Protocol](https://modelcontextprotocol.io/) server that enables AI assistants (Claude Desktop, Cursor, Kilo, etc.) to programmatically create and manipulate LabVIEW VIs through structured tool calls.
 
+<p align="center">
+  <img src="public/LabVIEWMCP.webp" alt="LabVIEW MCP Demo" width="700"/>
+</p>
+
 **Fork of [CalmyJane/labview_assistant](https://github.com/CalmyJane/labview_assistant)** with a completely rewritten Python layer featuring smart tool abstractions, terminal caching, structure-aware verification, and COM fallback error recovery.
 
 ---
